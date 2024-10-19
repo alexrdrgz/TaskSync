@@ -1,27 +1,33 @@
 {
-    "manifest_version": 3,
-    "name": "Google Tasks to Calendar",
-    "version": "1.0",
-    "description": "Add Google Tasks to your Calendar with one click",
-    "permissions": [
-      "activeTab",
-      "scripting",
-      "identity",
-      "https://www.googleapis.com/"
-    ],
-    "host_permissions": [
-      "https://tasks.google.com/*"
-    ],
-    "action": {
-      "default_popup": "popup.html"
-    },
-    "content_scripts": [
-      {
-        "matches": ["https://tasks.google.com/*"],
-        "js": ["content.js"]
-      }
-    ],
-    "background": {
-      "service_worker": "background.js"
+  "manifest_version": 3,
+  "name": "Google Tasks to Calendar",
+  "version": "1.0",
+  "description": "Add Google Tasks to your Calendar with one click",
+  "permissions": [
+    "identity",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://www.googleapis.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://tasks.google.com/*"],
+      "js": ["content.js"]
     }
-  }
+  ],
+  "oauth2": {
+    "client_id": "727538399732-jqihbqrlc9s6dk46r50hgk11g41329db.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/calendar.events"
+    ]
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyrLpOHzJhyPT9gw9D5UL/DWILvxQH1MW+Epy53hE61YVhGQ8tniPSC6dPgSRLpPFMJeT/5JZPsUkghzfVskj2R6UHSQ9z3WvI9ptBJgnWusQYNlCgjTTjUy3BnUthQqpsW1KqrNyBC4lsmTSFoD8SpfMkGkeYL7NKglAP/+92I5DbcnyAMysF8jzhlGgS8Q50AwT6dt/1cA6QRXmgIMQOBInlkyWxJZH8iRDTvKbWOLnnUaamjJJreL0C3Fl5zSeUmZRxRJglyfuRqiNnqXt5iZmvRALgpvmra5UTlwphjmbRx4/oSfGUtXUanR+X4H9N40sPfqJZkJRBz8ybRBcFQIDAQAB"
+}

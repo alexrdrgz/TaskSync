@@ -1,78 +1,122 @@
-const CLIENT_ID = 'YOUR_CLIENT_ID';
-const API_KEY = 'YOUR_API_KEY';
-const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
-const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+// Configuration for OAuth 2.0
+const config = {
+  clientId: '727538399732-dsfs266pvnii8hkafhf4d5v54q1gq9qe.apps.googleusercontent.com',
+  scopes: 'https://www.googleapis.com/auth/calendar.events',
+  redirectUri: `https://${chrome.runtime.id}.chromiumapp.org`
+};
+console.log('Redirect URI:', config.redirectUri);
 
-let tokenClient;
+let token = null;
+let logger = console;
 
-function initializeGapiClient() {
-  gapi.client.init({
-    apiKey: API_KEY,
-    discoveryDocs: [DISCOVERY_DOC],
-  });
+// Initialize configuration and logger
+function init(cfg, log) {
+  Object.assign(config, cfg);
+  logger = log || console;
 }
 
-function initializeTokenClient() {
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    callback: '', // defined later
-  });
+// Retrieve the last obtained token
+function getLastToken() {
+  return token;
 }
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.identity.getAuthToken({ interactive: true }, function(token) {
-    if (chrome.runtime.lastError) {
-      console.error(chrome.runtime.lastError);
-      return;
+// Login function to initiate OAuth 2.0 flow
+function login(callback) {
+  const authUrl = `https://accounts.google.com/o/oauth2/auth?response_type=token&client_id=${config.clientId}&scope=${config.scopes}&redirect_uri=${config.redirectUri}`;
+
+  logger.debug('OAuth URL:', authUrl);
+
+  chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: true }, function (redirectUrl) {
+    if (redirectUrl) {
+      logger.debug('launchWebAuthFlow login successful:', redirectUrl);
+      const parsed = parse(redirectUrl.substr(config.redirectUri.length + 1));
+      token = parsed.access_token;
+      logger.debug('Background login complete');
+      callback(token);
+    } else {
+      logger.error("launchWebAuthFlow login failed. Check your redirect URI configuration.");
+      callback(null);
     }
-    // Token is available for use
-    gapi.load('client', initializeGapiClient);
-    gapi.load('auth2', initializeTokenClient);
   });
-});
+}
 
+// Function to add a task as a calendar event
+function addTaskToCalendar(task, callback) {
+  if (!token) {
+    logger.error('No valid token available. Please log in first.');
+    return callback({ success: false, error: 'Not authenticated' });
+  }
+
+  const event = {
+    summary: task.title,
+    description: task.notes || 'Added from Google Tasks',
+    start: {
+      dateTime: task.due ? new Date(task.due).toISOString() : new Date().toISOString(),
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    },
+    end: {
+      dateTime: task.due ? new Date(new Date(task.due).getTime() + 60 * 60 * 1000).toISOString() : new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    }
+  };
+
+  fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(event)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.error) {
+      logger.error('Error creating event:', data.error);
+      callback({ success: false, error: data.error.message });
+    } else {
+      logger.debug('Event created:', data);
+      callback({ success: true, eventLink: data.htmlLink });
+    }
+  })
+  .catch(error => {
+    logger.error('Error creating event:', error);
+    callback({ success: false, error: 'Failed to create event' });
+  });
+}
+
+// Utility function to parse URL parameters
+function parse(str) {
+  if (typeof str !== 'string') return {};
+  str = str.trim().replace(/^(\?|#|&)/, '');
+  if (!str) return {};
+  return str.split('&').reduce((ret, param) => {
+    const parts = param.replace(/\+/g, ' ').split('=');
+    const key = decodeURIComponent(parts.shift());
+    const val = parts.length > 0 ? decodeURIComponent(parts.join('=')) : null;
+    if (!ret.hasOwnProperty(key)) {
+      ret[key] = val;
+    } else if (Array.isArray(ret[key])) {
+      ret[key].push(val);
+    } else {
+      ret[key] = [ret[key], val];
+    }
+    return ret;
+  }, {});
+}
+
+// Initialize the extension
+init({}, console);
+
+// Listen for messages from the content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'addToCalendar') {
     addTaskToCalendar(request.task, sendResponse);
     return true;  // Indicates we will send a response asynchronously
+  } else if (request.action === 'login') {
+    login(sendResponse);
+    return true;  // Indicates we will send a response asynchronously
   }
 });
 
-function addTaskToCalendar(task, sendResponse) {
-  chrome.identity.getAuthToken({ interactive: true }, function(token) {
-    if (chrome.runtime.lastError) {
-      console.error(chrome.runtime.lastError);
-      sendResponse({ success: false, error: 'Authentication failed' });
-      return;
-    }
-
-    gapi.auth.setToken({
-      access_token: token,
-    });
-
-    const event = {
-      'summary': task.name,
-      'description': 'Added from Google Tasks',
-      'start': {
-        'dateTime': task.dueDate ? new Date(task.dueDate).toISOString() : new Date().toISOString(),
-        'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone
-      },
-      'end': {
-        'dateTime': task.dueDate ? new Date(new Date(task.dueDate).getTime() + 60*60*1000).toISOString() : new Date(Date.now() + 60*60*1000).toISOString(),
-        'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone
-      }
-    };
-
-    gapi.client.calendar.events.insert({
-      'calendarId': 'primary',
-      'resource': event
-    }).then(function(response) {
-      console.log('Event created: ' + response.result.htmlLink);
-      sendResponse({ success: true, eventLink: response.result.htmlLink });
-    }, function(error) {
-      console.error('Error creating event:', error);
-      sendResponse({ success: false, error: 'Failed to create event' });
-    });
-  });
-}
+// Log that the service worker has loaded
+logger.debug('Service worker loaded');
