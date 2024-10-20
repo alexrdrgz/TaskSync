@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tasks to Calendar Settings</title>
+  <link rel="stylesheet" href="lib/material.min.css">
+  <script defer src="lib/material.min.js"></script>
+  <style>
+    body { 
+      width: 300px; 
+      font-family: 'Roboto', sans-serif;
+      padding: 16px;
+    }
+    .settings-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .time-input {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="mdl-layout mdl-js-layout">
+    <header class="mdl-layout__header">
+      <div class="mdl-layout__header-row">
+        <span class="mdl-layout-title">Settings</span>
+      </div>
+    </header>
+    <main class="mdl-layout__content">
+      <form id="settingsForm" class="settings-form">
+        <div class="time-input">
+          <label for="startTime">Office Start Time:</label>
+          <input type="time" id="startTime" name="startTime" required>
+        </div>
+        <div class="time-input">
+          <label for="endTime">Office End Time:</label>
+          <input type="time" id="endTime" name="endTime" required>
+        </div>
+        <button type="submit" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored">
+          Save Settings
+        </button>
+      </form>
+    </main>
+  </div>
+  <script src="settings.js"></script>
+</body>
+</html>

@@ -1,29 +1,31 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tasks to Calendar</title>
-  <style>
-    body { width: 300px; font-family: Arial, sans-serif; }
-    ul { list-style-type: none; padding: 0; }
-    li { margin-bottom: 15px; }
-    .duration-buttons { margin-top: 5px; }
-    .duration-btn {
-      margin-right: 5px;
-      padding: 5px 10px;
-      background-color: #f0f0f0;
-      border: 1px solid #ccc;
-      border-radius: 3px;
-      cursor: pointer;
-    }
-    .duration-btn:hover {
-      background-color: #e0e0e0;
-    }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Product+Sans&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="lib/material.min.css">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="lib/material.min.js"></script>
 </head>
 <body>
-  <h1>Your Tasks</h1>
-  <div id="loginStatus"></div>
-  <ul id="taskList"></ul>
+  <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
+    <header class="mdl-layout__header">
+      <div class="mdl-layout__header-row">
+        <span class="mdl-layout-title">Tasks to Events</span>
+      </div>
+    </header>
+    <main class="mdl-layout__content">
+      <div id="loginStatus"></div>
+      <ul id="taskList" class="task-list"></ul>
+    </main>
+  </div>
+  <div id="snackbar" class="mdl-js-snackbar mdl-snackbar">
+    <div class="mdl-snackbar__text"></div>
+    <button class="mdl-snackbar__action" type="button"></button>
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>
