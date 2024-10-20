@@ -40,6 +40,54 @@ function login(callback) {
   });
 }
 
+function getNextAvailableTime(duration) {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(['workDays', 'workStartTime', 'workEndTime'], function(result) {
+      const now = new Date();
+      const startTime = parseTime(result.workStartTime || '09:00');
+      const endTime = parseTime(result.workEndTime || '17:30');
+      const workDays = result.workDays || [false, true, true, true, true, true, false]; // Mon-Fri by default
+
+      console.log('Current settings:', { workDays, startTime, endTime });
+
+      let scheduledTime = new Date(now);
+      console.log('Initial scheduled time:', scheduledTime);
+
+      // Find the next work day
+      let daysChecked = 0;
+      while (daysChecked < 7 && !workDays[scheduledTime.getDay()]) {
+        scheduledTime.setDate(scheduledTime.getDate() + 1);
+        scheduledTime.setHours(startTime.hours, startTime.minutes, 0, 0);
+        daysChecked++;
+      }
+
+      console.log('After finding next work day:', scheduledTime);
+
+      // Adjust time if it's before start time or after end time
+      const timeInMinutes = scheduledTime.getHours() * 60 + scheduledTime.getMinutes();
+      const startTimeInMinutes = startTime.hours * 60 + startTime.minutes;
+      const endTimeInMinutes = endTime.hours * 60 + endTime.minutes;
+
+      if (timeInMinutes < startTimeInMinutes || timeInMinutes >= endTimeInMinutes) {
+        // If it's before start time or after end time, move to the next work day
+        do {
+          scheduledTime.setDate(scheduledTime.getDate() + 1);
+          scheduledTime.setHours(startTime.hours, startTime.minutes, 0, 0);
+        } while (!workDays[scheduledTime.getDay()]);
+      }
+
+      console.log('Final scheduled time:', scheduledTime);
+      resolve(scheduledTime);
+    });
+  });
+}
+
+// Helper function to parse time string
+function parseTime(timeString) {
+  const [hours, minutes] = timeString.split(':').map(Number);
+  return { hours, minutes };
+}
+
 // Function to add a task as a calendar event
 function addTaskToCalendar(task, duration, callback) {
   if (!token) {
@@ -53,53 +101,50 @@ function addTaskToCalendar(task, duration, callback) {
     return callback({ success: false, error: 'Invalid duration' });
   }
 
-  const startTime = new Date();
-  const endTime = new Date(startTime.getTime() + duration * 60000); // Convert minutes to milliseconds
+  getNextAvailableTime(duration).then((startTime) => {
+    const endTime = new Date(startTime.getTime() + duration * 60000); // Convert minutes to milliseconds
 
-  // Check if startTime and endTime are valid
-  if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
-    logger.error('Invalid start or end time for the event');
-    return callback({ success: false, error: 'Invalid start or end time' });
-  }
+    console.log('Scheduling task:', { startTime, endTime, duration });
 
-  const event = {
-    summary: task.title,
-    description: task.notes || 'Added from Google Tasks',
-    start: {
-      dateTime: startTime.toISOString(),
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    },
-    end: {
-      dateTime: endTime.toISOString(),
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    }
-  };
+    const event = {
+      summary: task.title,
+      description: task.notes || 'Added from Google Tasks',
+      start: {
+        dateTime: startTime.toISOString(),
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      },
+      end: {
+        dateTime: endTime.toISOString(),
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      }
+    };
 
-  fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(event)
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.error) {
-      logger.error('Error creating event:', data.error);
-      callback({ success: false, error: data.error.message });
-    } else {
-      logger.debug('Event created:', data);
-      callback({ success: true, eventLink: data.htmlLink });
-    }
-  })
-  .catch(error => {
-    logger.error('Error creating event:', error);
-    callback({ success: false, error: 'Failed to create event' });
+    fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(event)
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.error) {
+        logger.error('Error creating event:', data.error);
+        callback({ success: false, error: data.error.message });
+      } else {
+        logger.debug('Event created:', data);
+        callback({ success: true, eventLink: data.htmlLink });
+      }
+    })
+    .catch(error => {
+      logger.error('Error creating event:', error);
+      callback({ success: false, error: 'Failed to create event' });
+    });
   });
 }
 
-// New function to fetch tasks
+// Function to fetch tasks
 function fetchTasks(callback) {
   if (!token) {
     logger.error('No valid token available. Please log in first.');
@@ -173,7 +218,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;  // Indicates we will send a response asynchronously
   }
 });
-
 
 // Log that the service worker has loaded
 logger.debug('Service worker loaded');

@@ -6,7 +6,8 @@
   "permissions": [
     "identity",
     "activeTab",
-    "scripting"
+    "scripting",
+    "storage"
   ],
   "host_permissions": [
     "https://www.googleapis.com/",
@@ -19,6 +20,7 @@
   "action": {
     "default_popup": "popup.html"
   },
+  "options_page": "settings.html",
   "content_scripts": [
     {
       "matches": [

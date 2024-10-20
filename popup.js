@@ -71,4 +71,10 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
     document.body.appendChild(snackbarContainer);
     componentHandler.upgradeDom();
+
+    const settingsButton = document.getElementById('settingsButton');
+    
+    settingsButton.addEventListener('click', function() {
+        chrome.runtime.openOptionsPage();
+    });
   });

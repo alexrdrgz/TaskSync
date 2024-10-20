@@ -117,3 +117,8 @@
     color: white;
     float: left;
   }
+  .settings-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
