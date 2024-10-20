@@ -6,20 +6,31 @@ document.addEventListener('DOMContentLoaded', function() {
       taskList.innerHTML = '';
       tasks.forEach(task => {
         const li = document.createElement('li');
-        li.textContent = task.title;
-        const button = document.createElement('button');
-        button.textContent = 'Add to Calendar';
-        button.addEventListener('click', function() {
-          chrome.runtime.sendMessage({action: 'addToCalendar', task: task}, function(response) {
-            if (response.success) {
-              alert('Task added to calendar successfully!');
-            } else {
-              alert('Failed to add task to calendar: ' + response.error);
-            }
+        li.innerHTML = `
+          <span>${task.title}</span>
+          <div class="duration-buttons">
+            <button class="duration-btn" data-duration="15">15min</button>
+            <button class="duration-btn" data-duration="30">30min</button>
+            <button class="duration-btn" data-duration="60">1hour</button>
+          </div>
+        `;
+        li.querySelectorAll('.duration-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const duration = parseInt(this.getAttribute('data-duration'));
+            addToCalendar(task, duration);
           });
         });
-        li.appendChild(button);
         taskList.appendChild(li);
+      });
+    }
+  
+    function addToCalendar(task, duration) {
+      chrome.runtime.sendMessage({action: 'addToCalendar', task: task, duration: duration}, function(response) {
+        if (response.success) {
+          alert(`Task added to calendar successfully for ${duration} minutes!`);
+        } else {
+          alert('Failed to add task to calendar: ' + response.error);
+        }
       });
     }
   

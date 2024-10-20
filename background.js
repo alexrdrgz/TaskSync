@@ -41,21 +41,36 @@ function login(callback) {
 }
 
 // Function to add a task as a calendar event
-function addTaskToCalendar(task, callback) {
+function addTaskToCalendar(task, duration, callback) {
   if (!token) {
     logger.error('No valid token available. Please log in first.');
     return callback({ success: false, error: 'Not authenticated' });
+  }
+
+  // Check if the duration is within a reasonable range (e.g., up to 24 hours)
+  if (duration < 0 || duration > 1440) {
+    logger.error('Invalid duration for the event');
+    return callback({ success: false, error: 'Invalid duration' });
+  }
+
+  const startTime = new Date();
+  const endTime = new Date(startTime.getTime() + duration * 60000); // Convert minutes to milliseconds
+
+  // Check if startTime and endTime are valid
+  if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+    logger.error('Invalid start or end time for the event');
+    return callback({ success: false, error: 'Invalid start or end time' });
   }
 
   const event = {
     summary: task.title,
     description: task.notes || 'Added from Google Tasks',
     start: {
-      dateTime: task.due ? new Date(task.due).toISOString() : new Date().toISOString(),
+      dateTime: startTime.toISOString(),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
     },
     end: {
-      dateTime: task.due ? new Date(new Date(task.due).getTime() + 60 * 60 * 1000).toISOString() : new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      dateTime: endTime.toISOString(),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
     }
   };
@@ -154,10 +169,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     return true;  // Indicates we will send a response asynchronously
   } else if (request.action === 'addToCalendar') {
-    addTaskToCalendar(request.task, sendResponse);
+    addTaskToCalendar(request.task, request.duration, sendResponse);
     return true;  // Indicates we will send a response asynchronously
   }
 });
+
 
 // Log that the service worker has loaded
 logger.debug('Service worker loaded');
