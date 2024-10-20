@@ -1,35 +1,39 @@
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Popup loaded');
+    const loginStatus = document.getElementById('loginStatus');
+    const taskList = document.getElementById('taskList');
   
-    document.getElementById('loginButton').addEventListener('click', function() {
-      console.log('Login button clicked');
-      chrome.runtime.sendMessage({action: 'login'}, function(response) {
-        console.log('Login response received:', response);
-        if (response) {
-          console.log('Login successful');
-          // Update UI to show logged in state
+    function showTasks(tasks) {
+      taskList.innerHTML = '';
+      tasks.forEach(task => {
+        const li = document.createElement('li');
+        li.textContent = task.title;
+        const button = document.createElement('button');
+        button.textContent = 'Add to Calendar';
+        button.addEventListener('click', function() {
+          chrome.runtime.sendMessage({action: 'addToCalendar', task: task}, function(response) {
+            if (response.success) {
+              alert('Task added to calendar successfully!');
+            } else {
+              alert('Failed to add task to calendar: ' + response.error);
+            }
+          });
+        });
+        li.appendChild(button);
+        taskList.appendChild(li);
+      });
+    }
+  
+    function fetchTasks() {
+      chrome.runtime.sendMessage({action: 'getTasks'}, function(response) {
+        if (response.success) {
+          loginStatus.textContent = 'Logged in';
+          showTasks(response.tasks);
         } else {
-          console.error('Login failed');
-          // Update UI to show login failed
+          loginStatus.textContent = 'Not logged in';
+          taskList.innerHTML = '<li>Failed to fetch tasks: ' + response.error + '</li>';
         }
       });
-    });
+    }
   
-    document.getElementById('addTaskButton').addEventListener('click', function() {
-      console.log('Add task button clicked');
-      const task = {
-        name: 'Example Task',
-        dueDate: new Date().toISOString()
-      };
-      chrome.runtime.sendMessage({action: 'addTask', task: task}, function(response) {
-        console.log('Add task response received:', response);
-        if (response && response.success) {
-          console.log('Task added successfully');
-          // Update UI to show task added
-        } else {
-          console.error('Failed to add task:', response ? response.error : 'Unknown error');
-          // Update UI to show task addition failed
-        }
-      });
-    });
+    fetchTasks();
   });

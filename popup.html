@@ -1,11 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Google Tasks to Calendar</title>
+  <title>Tasks to Calendar</title>
+  <style>
+    body { width: 300px; font-family: Arial, sans-serif; }
+    ul { list-style-type: none; padding: 0; }
+    li { margin-bottom: 10px; }
+    button { margin-left: 10px; }
+  </style>
 </head>
-<body style="background-color: #f0f0f0; font-family: Arial, sans-serif; padding: 20px;">
-  <h1>Google Tasks to Calendar</h1>
-  <p>Click on the calendar icon next to a task to add it to your calendar.</p>
+<body>
+  <h1>Your Tasks</h1>
+  <div id="loginStatus"></div>
+  <ul id="taskList"></ul>
   <script src="popup.js"></script>
 </body>
 </html>

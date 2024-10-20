@@ -1,7 +1,7 @@
 // Configuration for OAuth 2.0
 const config = {
   clientId: '727538399732-dsfs266pvnii8hkafhf4d5v54q1gq9qe.apps.googleusercontent.com',
-  scopes: 'https://www.googleapis.com/auth/calendar.events',
+  scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/tasks.readonly',
   redirectUri: `https://${chrome.runtime.id}.chromiumapp.org`
 };
 console.log('Redirect URI:', config.redirectUri);
@@ -84,6 +84,34 @@ function addTaskToCalendar(task, callback) {
   });
 }
 
+// New function to fetch tasks
+function fetchTasks(callback) {
+  if (!token) {
+    logger.error('No valid token available. Please log in first.');
+    return callback({ success: false, error: 'Not authenticated' });
+  }
+
+  fetch('https://tasks.googleapis.com/tasks/v1/lists/@default/tasks', {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.error) {
+      logger.error('Error fetching tasks:', data.error);
+      callback({ success: false, error: data.error.message });
+    } else {
+      logger.debug('Tasks fetched:', data.items);
+      callback({ success: true, tasks: data.items || [] });
+    }
+  })
+  .catch(error => {
+    logger.error('Error fetching tasks:', error);
+    callback({ success: false, error: 'Failed to fetch tasks' });
+  });
+}
+
 // Utility function to parse URL parameters
 function parse(str) {
   if (typeof str !== 'string') return {};
@@ -107,13 +135,26 @@ function parse(str) {
 // Initialize the extension
 init({}, console);
 
-// Listen for messages from the content script
+// Listen for messages from the popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'addToCalendar') {
-    addTaskToCalendar(request.task, sendResponse);
-    return true;  // Indicates we will send a response asynchronously
-  } else if (request.action === 'login') {
+  if (request.action === 'login') {
     login(sendResponse);
+    return true;  // Indicates we will send a response asynchronously
+  } else if (request.action === 'getTasks') {
+    if (token) {
+      fetchTasks(sendResponse);
+    } else {
+      login((loginResult) => {
+        if (loginResult) {
+          fetchTasks(sendResponse);
+        } else {
+          sendResponse({ success: false, error: 'Login failed' });
+        }
+      });
+    }
+    return true;  // Indicates we will send a response asynchronously
+  } else if (request.action === 'addToCalendar') {
+    addTaskToCalendar(request.task, sendResponse);
     return true;  // Indicates we will send a response asynchronously
   }
 });
