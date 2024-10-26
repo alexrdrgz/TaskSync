@@ -8,6 +8,7 @@ console.log('Redirect URI:', config.redirectUri);
 
 let token = null;
 let logger = console;
+let scheduledEvents = [];
 
 // Initialize configuration and logger
 function init(cfg, log) {
@@ -46,86 +47,153 @@ function getNextAvailableTime(duration) {
       const now = new Date();
       const startTime = parseTime(result.workStartTime || '09:00');
       const endTime = parseTime(result.workEndTime || '17:30');
-      const workDays = result.workDays || [false, true, true, true, true, true, false]; // Mon-Fri by default
+      const workDays = result.workDays || [false, true, true, true, true, false, false]; // Mon-Fri by default
 
-      console.log('Current settings:', { workDays, startTime, endTime });
+      console.log('Scheduling task. Current time:', now);
+      console.log('Work settings:', { workDays, startTime, endTime });
+      console.log('Scheduled events:', scheduledEvents.length);
 
-      let scheduledTime = new Date(now);
-      console.log('Initial scheduled time:', scheduledTime);
+      let currentTime = new Date(now);
 
-      // Find the next work day
-      let daysChecked = 0;
-      while (daysChecked < 7 && !workDays[scheduledTime.getDay()]) {
-        scheduledTime.setDate(scheduledTime.getDate() + 1);
-        scheduledTime.setHours(startTime.hours, startTime.minutes, 0, 0);
-        daysChecked++;
+      function isWorkDay(date) {
+        return workDays[date.getDay()];
       }
 
-      console.log('After finding next work day:', scheduledTime);
-
-      // Adjust time if it's before start time or after end time
-      const timeInMinutes = scheduledTime.getHours() * 60 + scheduledTime.getMinutes();
-      const startTimeInMinutes = startTime.hours * 60 + startTime.minutes;
-      const endTimeInMinutes = endTime.hours * 60 + endTime.minutes;
-
-      if (timeInMinutes < startTimeInMinutes || timeInMinutes >= endTimeInMinutes) {
-        // If it's before start time or after end time, move to the next work day
-        do {
-          scheduledTime.setDate(scheduledTime.getDate() + 1);
-          scheduledTime.setHours(startTime.hours, startTime.minutes, 0, 0);
-        } while (!workDays[scheduledTime.getDay()]);
+      function isWithinWorkHours(date) {
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        return (hours > startTime.hours || (hours === startTime.hours && minutes >= startTime.minutes)) &&
+               (hours < endTime.hours || (hours === endTime.hours && minutes < endTime.minutes));
       }
 
-      console.log('Final scheduled time:', scheduledTime);
-      resolve(scheduledTime);
+      function adjustToWorkHours(date) {
+        if (date.getHours() < startTime.hours || (date.getHours() === startTime.hours && date.getMinutes() < startTime.minutes)) {
+          date.setHours(startTime.hours, startTime.minutes, 0, 0);
+        } else if (date.getHours() >= endTime.hours) {
+          date.setDate(date.getDate() + 1);
+          date.setHours(startTime.hours, startTime.minutes, 0, 0);
+        }
+        return date;
+      }
+
+      // Also modify the conflict check to be more lenient
+function findNextAvailableSlot() {
+  let attempts = 0;
+  while (attempts < 7 * 24 * 4) {
+    if (!isWorkDay(currentTime)) {
+      currentTime.setDate(currentTime.getDate() + 1);
+      currentTime.setHours(startTime.hours, startTime.minutes, 0, 0);
+      continue;
+    }
+
+    currentTime = adjustToWorkHours(currentTime);
+
+    if (!isWithinWorkHours(currentTime)) {
+      currentTime.setDate(currentTime.getDate() + 1);
+      currentTime.setHours(startTime.hours, startTime.minutes, 0, 0);
+      continue;
+    }
+
+    const endTime = new Date(currentTime.getTime() + duration * 60000);
+
+    // Modified conflict check to be more specific
+    const conflict = scheduledEvents.find(event => {
+      const eventStart = event.start;
+      const eventEnd = event.end;
+      
+      // Only consider conflicts within the same day
+      if (eventStart.getDate() !== currentTime.getDate()) {
+        return false;
+      }
+
+      return (currentTime >= eventStart && currentTime < eventEnd) ||
+             (endTime > eventStart && endTime <= eventEnd) ||
+             (currentTime <= eventStart && endTime >= eventEnd);
+    });
+
+    if (!conflict && isWithinWorkHours(endTime)) {
+      console.log('Available slot found:', {
+        start: currentTime.toLocaleString(),
+        end: endTime.toLocaleString()
+      });
+      return currentTime;
+    }
+
+    if (conflict) {
+      console.log('Conflict found:', {
+        attemptedSlot: {
+          start: currentTime.toLocaleString(),
+          end: endTime.toLocaleString()
+        },
+        conflictingEvent: {
+          summary: conflict.summary,
+          start: conflict.start.toLocaleString(),
+          end: conflict.end.toLocaleString()
+        }
+      });
+      // Move to 15 minutes after conflict ends instead of to the end
+      currentTime = new Date(conflict.end.getTime() + 15 * 60000);
+    } else {
+      currentTime.setTime(currentTime.getTime() + 15 * 60000);
+    }
+
+    attempts++;
+  }
+
+  return null;
+}
+
+      const availableTime = findNextAvailableSlot();
+      if (availableTime) {
+        resolve(availableTime);
+      } else {
+        reject(new Error('No available time slot found within a week'));
+      }
     });
   });
 }
 
-// Helper function to parse time string
 function parseTime(timeString) {
   const [hours, minutes] = timeString.split(':').map(Number);
   return { hours, minutes };
 }
 
-// Function to add a task as a calendar event
 function addTaskToCalendar(task, duration, callback) {
   if (!token) {
     logger.error('No valid token available. Please log in first.');
     return callback({ success: false, error: 'Not authenticated' });
   }
 
-  // Check if the duration is within a reasonable range (e.g., up to 24 hours)
-  if (duration < 0 || duration > 1440) {
-    logger.error('Invalid duration for the event');
-    return callback({ success: false, error: 'Invalid duration' });
-  }
+  console.log('Attempting to schedule task:', task.title, 'Duration:', duration, 'minutes');
+  console.log('Local timezone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
 
-  getNextAvailableTime(duration).then((startTime) => {
-    const endTime = new Date(startTime.getTime() + duration * 60000); // Convert minutes to milliseconds
+  getNextAvailableTime(duration)
+    .then((startTime) => {
+      const endTime = new Date(startTime.getTime() + duration * 60000);
 
-    console.log('Scheduling task:', { startTime, endTime, duration });
+      console.log('Scheduled time found:', { startTime, endTime });
 
-    const event = {
-      summary: task.title,
-      description: task.notes || 'Added from Google Tasks',
-      start: {
-        dateTime: startTime.toISOString(),
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      },
-      end: {
-        dateTime: endTime.toISOString(),
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      }
-    };
+      const event = {
+        summary: task.title,
+        description: task.notes || 'Added from Google Tasks',
+        start: {
+          dateTime: startTime.toISOString(),
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        },
+        end: {
+          dateTime: endTime.toISOString(),
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        }
+      };
 
-    fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(event)
+      return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(event)
+      });
     })
     .then(response => response.json())
     .then(data => {
@@ -134,17 +202,107 @@ function addTaskToCalendar(task, duration, callback) {
         callback({ success: false, error: data.error.message });
       } else {
         logger.debug('Event created:', data);
+        scheduledEvents.push({ start: new Date(data.start.dateTime), end: new Date(data.end.dateTime) });
+        console.log('Updated scheduled events. Total events:', scheduledEvents.length);
         callback({ success: true, eventLink: data.htmlLink });
       }
     })
     .catch(error => {
-      logger.error('Error creating event:', error);
-      callback({ success: false, error: 'Failed to create event' });
+      logger.error('Error in scheduling process:', error);
+      callback({ success: false, error: error.message || 'Failed to schedule event' });
     });
+}
+
+// Utility function to parse URL parameters
+function parse(str) {
+  if (typeof str !== 'string') return {};
+  str = str.trim().replace(/^(\?|#|&)/, '');
+  if (!str) return {};
+  return str.split('&').reduce((ret, param) => {
+    const parts = param.replace(/\+/g, ' ').split('=');
+    const key = decodeURIComponent(parts.shift());
+    const val = parts.length > 0 ? decodeURIComponent(parts.join('=')) : null;
+    if (!ret.hasOwnProperty(key)) {
+      ret[key] = val;
+    } else if (Array.isArray(ret[key])) {
+      ret[key].push(val);
+    } else {
+      ret[key] = [ret[key], val];
+    }
+    return ret;
+  }, {});
+}
+
+// Initialize scheduledEvents with existing calendar events
+function initializeScheduledEvents() {
+  if (!token) {
+    logger.error('No valid token available. Please log in first.');
+    return;
+  }
+
+  const now = new Date();
+  const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now.toISOString()}&timeMax=${oneWeekLater.toISOString()}&singleEvents=true&orderBy=startTime`;
+
+  fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.error) {
+      logger.error('Error fetching events:', data.error);
+    } else {
+      // Log raw events before filtering
+      console.log('All fetched events:', data.items);
+      
+      scheduledEvents = data.items
+        .filter(event => {
+          // Only include events with specific times (not all-day events)
+          if (!event.start.dateTime || !event.end.dateTime) {
+            console.log('Filtered out all-day event:', event);
+            return false;
+          }
+
+          const startTime = new Date(event.start.dateTime);
+          const endTime = new Date(event.end.dateTime);
+          const durationHours = (endTime - startTime) / (1000 * 60 * 60);
+
+          // Filter out suspicious 24-hour events
+          if (durationHours >= 24) {
+            console.log('Filtered out 24-hour event:', event);
+            return false;
+          }
+
+          // Filter out events without summary/title
+          if (!event.summary) {
+            console.log('Filtered out untitled event:', event);
+            return false;
+          }
+
+          return true;
+        })
+        .map(event => ({
+          summary: event.summary,
+          start: new Date(event.start.dateTime),
+          end: new Date(event.end.dateTime)
+        }));
+
+      console.log('Final filtered events:', scheduledEvents.map(event => ({
+        summary: event.summary,
+        start: event.start.toLocaleString(),
+        end: event.end.toLocaleString(),
+        duration: (event.end - event.start) / (1000 * 60) + ' minutes'
+      })));
+    }
+  })
+  .catch(error => {
+    logger.error('Error fetching events:', error);
   });
 }
 
-// Function to fetch tasks
 function fetchTasks(callback) {
   if (!token) {
     logger.error('No valid token available. Please log in first.');
@@ -172,33 +330,49 @@ function fetchTasks(callback) {
   });
 }
 
-// Utility function to parse URL parameters
-function parse(str) {
-  if (typeof str !== 'string') return {};
-  str = str.trim().replace(/^(\?|#|&)/, '');
-  if (!str) return {};
-  return str.split('&').reduce((ret, param) => {
-    const parts = param.replace(/\+/g, ' ').split('=');
-    const key = decodeURIComponent(parts.shift());
-    const val = parts.length > 0 ? decodeURIComponent(parts.join('=')) : null;
-    if (!ret.hasOwnProperty(key)) {
-      ret[key] = val;
-    } else if (Array.isArray(ret[key])) {
-      ret[key].push(val);
-    } else {
-      ret[key] = [ret[key], val];
-    }
-    return ret;
-  }, {});
-}
+// Initialize scheduledEvents with existing calendar events
+function initializeScheduledEvents() {
+  if (!token) {
+    logger.error('No valid token available. Please log in first.');
+    return;
+  }
 
-// Initialize the extension
-init({}, console);
+  const now = new Date();
+  const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now.toISOString()}&timeMax=${oneWeekLater.toISOString()}&singleEvents=true&orderBy=startTime`;
+
+  fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.error) {
+      logger.error('Error fetching events:', data.error);
+    } else {
+      scheduledEvents = data.items.map(event => ({
+        start: new Date(event.start.dateTime || event.start.date),
+        end: new Date(event.end.dateTime || event.end.date)
+      }));
+      console.log('Initialized scheduled events:', scheduledEvents);
+    }
+  })
+  .catch(error => {
+    logger.error('Error fetching events:', error);
+  });
+}
 
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'login') {
-    login(sendResponse);
+    login((loginResult) => {
+      if (loginResult) {
+        initializeScheduledEvents();
+      }
+      sendResponse(loginResult);
+    });
     return true;  // Indicates we will send a response asynchronously
   } else if (request.action === 'getTasks') {
     if (token) {
@@ -206,6 +380,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } else {
       login((loginResult) => {
         if (loginResult) {
+          initializeScheduledEvents();
           fetchTasks(sendResponse);
         } else {
           sendResponse({ success: false, error: 'Login failed' });
@@ -218,6 +393,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;  // Indicates we will send a response asynchronously
   }
 });
+
+// Initialize the extension
+init({}, console);
 
 // Log that the service worker has loaded
 logger.debug('Service worker loaded');
