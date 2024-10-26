@@ -167,50 +167,101 @@ function addTaskToCalendar(task, duration, callback) {
   console.log('Attempting to schedule task:', task.title, 'Duration:', duration, 'minutes');
   console.log('Local timezone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
 
-  getNextAvailableTime(duration)
-    .then((startTime) => {
-      const endTime = new Date(startTime.getTime() + duration * 60000);
+  // First refresh the calendar events
+  const now = new Date();
+  const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-      console.log('Scheduled time found:', { startTime, endTime });
+  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now.toISOString()}&timeMax=${oneWeekLater.toISOString()}&singleEvents=true&orderBy=startTime`;
 
-      const event = {
-        summary: task.title,
-        description: task.notes || 'Added from Google Tasks',
-        start: {
-          dateTime: startTime.toISOString(),
-          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-        },
-        end: {
-          dateTime: endTime.toISOString(),
-          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+  // Fetch latest calendar events before scheduling
+  fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.error) {
+      throw new Error('Error fetching events: ' + data.error.message);
+    }
+    
+    // Update scheduledEvents with latest calendar data
+    scheduledEvents = data.items
+      .filter(event => {
+        // Only include events with specific times (not all-day events)
+        if (!event.start.dateTime || !event.end.dateTime) {
+          return false;
         }
-      };
 
-      return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(event)
-      });
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.error) {
-        logger.error('Error creating event:', data.error);
-        callback({ success: false, error: data.error.message });
-      } else {
-        logger.debug('Event created:', data);
-        scheduledEvents.push({ start: new Date(data.start.dateTime), end: new Date(data.end.dateTime) });
-        console.log('Updated scheduled events. Total events:', scheduledEvents.length);
-        callback({ success: true, eventLink: data.htmlLink });
+        const startTime = new Date(event.start.dateTime);
+        const endTime = new Date(event.end.dateTime);
+        const durationHours = (endTime - startTime) / (1000 * 60 * 60);
+
+        // Filter out suspicious 24-hour events
+        if (durationHours >= 24) {
+          return false;
+        }
+
+        return true;
+      })
+      .map(event => ({
+        summary: event.summary,
+        start: new Date(event.start.dateTime),
+        end: new Date(event.end.dateTime)
+      }));
+
+    console.log('Updated calendar events before scheduling:', scheduledEvents);
+    
+    // Now proceed with finding next available time and scheduling
+    return getNextAvailableTime(duration);
+  })
+  .then((startTime) => {
+    const endTime = new Date(startTime.getTime() + duration * 60000);
+
+    console.log('Scheduled time found:', { startTime, endTime });
+
+    const event = {
+      summary: task.title,
+      description: task.notes || 'Added from Google Tasks',
+      start: {
+        dateTime: startTime.toISOString(),
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      },
+      end: {
+        dateTime: endTime.toISOString(),
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
       }
-    })
-    .catch(error => {
-      logger.error('Error in scheduling process:', error);
-      callback({ success: false, error: error.message || 'Failed to schedule event' });
+    };
+
+    return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(event)
     });
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.error) {
+      logger.error('Error creating event:', data.error);
+      callback({ success: false, error: data.error.message });
+    } else {
+      logger.debug('Event created:', data);
+      scheduledEvents.push({ 
+        summary: data.summary,
+        start: new Date(data.start.dateTime), 
+        end: new Date(data.end.dateTime) 
+      });
+      console.log('Updated scheduled events. Total events:', scheduledEvents.length);
+      callback({ success: true, eventLink: data.htmlLink });
+    }
+  })
+  .catch(error => {
+    logger.error('Error in scheduling process:', error);
+    callback({ success: false, error: error.message || 'Failed to schedule event' });
+  });
 }
 
 // Utility function to parse URL parameters
