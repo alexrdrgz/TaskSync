@@ -9,6 +9,12 @@
     "scripting",
     "storage"
   ],
+  "icons": {
+   "16": "icons/icon1.png",
+   "32": "icons/icon1.png",
+   "48": "icons/icon1.png",
+   "128": "icons/icon1.png"
+ },
   "host_permissions": [
     "https://www.googleapis.com/",
     "https://mail.google.com/",
