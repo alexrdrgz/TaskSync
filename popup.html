@@ -6,29 +6,27 @@
   <title>Tasks to Calendar</title>
   <link href="https://fonts.googleapis.com/css2?family=Product+Sans&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-  <link rel="stylesheet" href="lib/material.min.css">
   <link rel="stylesheet" href="styles.css">
-  <script defer src="lib/material.min.js"></script>
 </head>
 <body>
   <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
-    <header class="mdl-layout__header">
-      <div class="mdl-layout__header-row">
-        <span class="mdl-layout-title">Your Tasks</span>
-        <div class="mdl-layout-spacer"></div>
-        <button id="settingsButton" class="mdl-button mdl-js-button mdl-button--icon settings-button">
+    <header>
+      <div class="header-container">
+        <span class="header-title">TaskSyncer</span>
+        <div class="header-spacer"></div>
+        <button id="settingsButton" class="mdl-button mdl-js-button mdl-button--icon settings-button theme-switch">
           <i class="material-icons">settings</i>
         </button>
       </div>
     </header>
-    <main class="mdl-layout__content">
+    <main class="main-content">
       <div id="loginStatus"></div>
       <ul id="taskList" class="task-list"></ul>
     </main>
   </div>
-  <div id="snackbar" class="mdl-js-snackbar mdl-snackbar">
-    <div class="mdl-snackbar__text"></div>
-    <button class="mdl-snackbar__action" type="button"></button>
+  <div id="snackbar" class="snackbar">
+    <div class="snackbar-message"></div>
+    <button class="snackbar-action" type="button"></button>
   </div>
   <script src="popup.js"></script>
 </body>
