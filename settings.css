@@ -1,0 +1,45 @@
+:root {
+    --google-blue: #3b82f6;
+    --google-red: #DB4437;
+    --google-yellow: #F4B400;
+    --google-green: #0F9D58;
+
+    --blue-500: #3b82f6;
+    --purple-600: #9333ea;
+    --green-500: #22c55e;
+    --yellow-500: #eab308;
+    --background: #ffffff;
+    --foreground: #000000;
+    --muted-foreground: #6b7280;
+    --card-background: #ffffff;
+    --button-background: #f3f4f6;
+    --button-foreground: #374151;
+    --button-hover: #e5e7eb;
+    --background: #ffffff;
+    --foreground: #000000;
+}
+
+.settings-header-container{
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    height: 3.5em;
+    align-items: center;
+    background: linear-gradient(to right, var(--blue-500), var(--purple-600));
+    color: white;
+    font-weight: 800;
+    font-size: 1.25em;
+}
+
+.settings-content-container{
+    width: 100%;
+    /* background: grey; */
+    /* padding: 50px; */
+    display: flex;
+    justify-content: center;
+}
+
+.settings-form{
+    padding: 50px;
+
+}

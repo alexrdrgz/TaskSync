@@ -41,6 +41,7 @@
 }
 
 header {
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -137,3 +138,4 @@ main {
   pointer-events: auto;
   transition: transform 0.25s cubic-bezier(0, 0, 0.2, 1);
 }
+
