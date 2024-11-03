@@ -66,7 +66,7 @@
 }
 
 .work-days{
-    font-size: 1em;
+    font-size: 1.2em;
     font-weight: bold;
 }
 
@@ -84,4 +84,14 @@
 .time-input{
     display: flex;
     flex-direction: column;
+}
+
+.mdl-checkbox__label{
+    font-weight: bold;
+    font-size: 1em;
+}
+
+.settings-button:hover{
+    background-color: var(--google-blue);
+    color: white;
 }
