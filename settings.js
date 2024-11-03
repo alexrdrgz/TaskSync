@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const startTimeInput = document.getElementById('startTime');
     const endTimeInput = document.getElementById('endTime');
     const dayCheckboxes = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map(day => document.getElementById(day));
+    const snackbar = document.getElementById('snackbar');
   
     // Load saved settings
     chrome.storage.sync.get(['workDays', 'workStartTime', 'workEndTime'], function(result) {
@@ -35,7 +36,18 @@ document.addEventListener('DOMContentLoaded', function() {
         workEndTime: endTime
       }, function() {
         console.log('Settings saved:', { workDays, startTime, endTime });
-        // You can add a visual confirmation here if you want
+        // Check if snackbar exists before trying to manipulate it
+        if (snackbar) {
+          snackbar.classList.remove('no-show');
+          snackbar.textContent = 'Settings have been updated';
+          
+          // Make the snackbar fade away after 3 seconds
+          setTimeout(() => {
+            snackbar.classList.add('no-show');
+          }, 3000);
+        } else {
+          console.error('Snackbar element not found.');
+        }
       });
     });
   });
