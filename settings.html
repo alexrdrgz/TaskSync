@@ -10,55 +10,64 @@
   <div class="mdl-layout">
     <header class="settings-header">
       <div class="settings-header-container">
-        <span class="settings-header-title">Settings</span>
+        <span class="settings-header-title">TaskSync</span>
       </div>
     </header>
     <main class="mdl-layout__content settings-content-container">
-      <form id="settingsForm" class="settings-form">
-        <div class="days-input">
-          <label>Work Days:</label>
-          <div class="days-container">
-            <label class="day-checkbox mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="sunday">
-              <input type="checkbox" id="sunday" class="mdl-checkbox__input">
-              <span class="mdl-checkbox__label">Sun</span>
-            </label>
-            <label class="day-checkbox mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="monday">
-              <input type="checkbox" id="monday" class="mdl-checkbox__input" checked>
-              <span class="mdl-checkbox__label">Mon</span>
-            </label>
-            <label class="day-checkbox mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="tuesday">
-              <input type="checkbox" id="tuesday" class="mdl-checkbox__input" checked>
-              <span class="mdl-checkbox__label">Tue</span>
-            </label>
-            <label class="day-checkbox mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="wednesday">
-              <input type="checkbox" id="wednesday" class="mdl-checkbox__input" checked>
-              <span class="mdl-checkbox__label">Wed</span>
-            </label>
-            <label class="day-checkbox mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="thursday">
-              <input type="checkbox" id="thursday" class="mdl-checkbox__input" checked>
-              <span class="mdl-checkbox__label">Thu</span>
-            </label>
-            <label class="day-checkbox mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="friday">
-              <input type="checkbox" id="friday" class="mdl-checkbox__input" checked>
-              <span class="mdl-checkbox__label">Fri</span>
-            </label>
-            <label class="day-checkbox mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="saturday">
-              <input type="checkbox" id="saturday" class="mdl-checkbox__input">
-              <span class="mdl-checkbox__label">Sat</span>
-            </label>
+      <div class="settings-form-inner-wrapper">
+        <div class="settings-form-header">
+          <p class="form-title">Work Schedule Settings</p>
+          <p class="form-subtitle">Choose your work days and hours</p>
+        </div>
+        <form id="settingsForm" class="settings-form">
+          <div class="days-input">
+            <label class="work-days">Work Days:</label>
+            <div class="days-container">
+              <label class="day-checkbox mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="sunday">
+                <input type="checkbox" id="sunday" class="mdl-checkbox__input">
+                <span class="mdl-checkbox__label">Sunday</span>
+              </label>
+              <label class="day-checkbox mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="monday">
+                <input type="checkbox" id="monday" class="mdl-checkbox__input" checked>
+                <span class="mdl-checkbox__label">Monday</span>
+              </label>
+              <label class="day-checkbox mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="tuesday">
+                <input type="checkbox" id="tuesday" class="mdl-checkbox__input" checked>
+                <span class="mdl-checkbox__label">Tuesday</span>
+              </label>
+              <label class="day-checkbox mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="wednesday">
+                <input type="checkbox" id="wednesday" class="mdl-checkbox__input" checked>
+                <span class="mdl-checkbox__label">Wednesday</span>
+              </label>
+              <label class="day-checkbox mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="thursday">
+                <input type="checkbox" id="thursday" class="mdl-checkbox__input" checked>
+                <span class="mdl-checkbox__label">Thursday</span>
+              </label>
+              <label class="day-checkbox mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="friday">
+                <input type="checkbox" id="friday" class="mdl-checkbox__input" checked>
+                <span class="mdl-checkbox__label">Friday</span>
+              </label>
+              <label class="day-checkbox mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="saturday">
+                <input type="checkbox" id="saturday" class="mdl-checkbox__input">
+                <span class="mdl-checkbox__label">Saturday</span>
+              </label>
+            </div>
           </div>
-        </div>
-        <div class="time-input">
-          <label for="startTime">Work Start Time:</label>
-          <input type="time" id="startTime" name="startTime" value="09:00" required>
-        </div>
-        <div class="time-input">
-          <label for="endTime">Work End Time:</label>
-          <input type="time" id="endTime" name="endTime" value="17:30" required>
-        </div>
-        <button type="submit" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored">
-          Save Settings
-        </button>
+          <div class="time-container">
+            <div class="time-input">
+              <label for="startTime">Start Time:</label>
+              <input type="time" id="startTime" name="startTime" value="09:00" required>
+            </div>
+            <div class="time-input">
+              <label for="endTime">End Time:</label>
+              <input type="time" id="endTime" name="endTime" value="17:30" required>
+            </div>
+          </div>
+        
+          <button type="submit" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored">
+            Save Settings
+          </button>
+      </div>
       </form>
     </main>
   </div>
