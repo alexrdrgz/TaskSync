@@ -44,21 +44,25 @@ document.addEventListener('DOMContentLoaded', function() {
   function addToCalendar(task, duration) {
     chrome.runtime.sendMessage({ action: 'addToCalendar', task: task, duration: duration }, function(response) {
       if (response.success) {
-        showSnackbar(`Task added to calendar for ${duration} minutes!`);
+        const startTime = new Date(response.eventStart);
+        const endTime = new Date(response.eventEnd);
+        const startDate = startTime.toLocaleDateString();
+        const startTimeString = startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const endTimeString = endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        showSnackbar(`Scheduled for ${startDate} at ${startTimeString}`);
       } else {
         showSnackbar('Failed to add task to calendar: ' + response.error);
       }
     });
   }
-
   function showSnackbar(message) {
     const snackbar = document.getElementById('snackbar');
     const snackbarMessage = snackbar.querySelector('.snackbar-message');
     snackbarMessage.textContent = message;
-    snackbar.classList.add('mdl-snackbar--active');
+    snackbar.classList.remove('no-show');
 
     setTimeout(() => {
-      snackbar.classList.remove('mdl-snackbar--active');
+      snackbar.classList.add('no-show');
     }, 3000);
   }
 

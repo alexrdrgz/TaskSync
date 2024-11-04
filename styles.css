@@ -132,9 +132,49 @@ main {
   color: var(--blue-500);
 }
 
-.mdl-snackbar--active {
+/* .mdl-snackbar--active {
   transform: translate(0, 0);
   pointer-events: auto;
   transition: transform 0.25s cubic-bezier(0, 0, 0.2, 1);
+} */
+
+.snackbar {
+  position: fixed;
+  bottom: 0px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--google-green); /* Google green with 80% opacity */
+  color: white;
+  padding: 16px;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 288px;
+  max-width: 568px;
+  z-index: 10;
+}
+
+.snackbar-message {
+  flex-grow: 1;
+  margin-right: 16px;
+  font-size: 1.2em;
+  text-align: center;
+}
+
+.snackbar-action {
+  background: none;
+  border: none;
+  color: var(--google-blue);
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.no-show {
+  display: none !important;
 }
 

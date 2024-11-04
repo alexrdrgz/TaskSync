@@ -255,7 +255,12 @@ function addTaskToCalendar(task, duration, callback) {
         end: new Date(data.end.dateTime) 
       });
       console.log('Updated scheduled events. Total events:', scheduledEvents.length);
-      callback({ success: true, eventLink: data.htmlLink });
+      callback({ 
+        success: true, 
+        eventLink: data.htmlLink,
+        eventStart: data.start.dateTime, // Pass the start time
+        eventEnd: data.end.dateTime // Pass the end time
+      });
     }
   })
   .catch(error => {
