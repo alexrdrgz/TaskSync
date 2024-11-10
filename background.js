@@ -4,41 +4,122 @@ const config = {
   scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/tasks.readonly',
   redirectUri: `https://${chrome.runtime.id}.chromiumapp.org`
 };
-console.log('Redirect URI:', config.redirectUri);
 
-let token = null;
 let logger = console;
 let scheduledEvents = [];
 
-// Initialize configuration and logger
-function init(cfg, log) {
-  Object.assign(config, cfg);
-  logger = log || console;
-}
+class TokenManager {
+  constructor() {
+    this.token = null;
+    this.expiresAt = null;
+    this.TOKEN_STORAGE_KEY = 'oauth_token_info';
+  }
 
-// Retrieve the last obtained token
-function getLastToken() {
-  return token;
-}
-
-// Login function to initiate OAuth 2.0 flow
-function login(callback) {
-  const authUrl = `https://accounts.google.com/o/oauth2/auth?response_type=token&client_id=${config.clientId}&scope=${config.scopes}&redirect_uri=${config.redirectUri}`;
-
-  logger.debug('OAuth URL:', authUrl);
-
-  chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: true }, function (redirectUrl) {
-    if (redirectUrl) {
-      logger.debug('launchWebAuthFlow login successful:', redirectUrl);
-      const parsed = parse(redirectUrl.substr(config.redirectUri.length + 1));
-      token = parsed.access_token;
-      logger.debug('Background login complete');
-      callback(token);
-    } else {
-      logger.error("launchWebAuthFlow login failed. Check your redirect URI configuration.");
-      callback(null);
+  async init() {
+    try {
+      const saved = await chrome.storage.local.get(this.TOKEN_STORAGE_KEY);
+      if (saved[this.TOKEN_STORAGE_KEY]) {
+        const { token, expiresAt } = saved[this.TOKEN_STORAGE_KEY];
+        // Only restore if token isn't expired
+        if (expiresAt && Date.now() < expiresAt) {
+          this.token = token;
+          this.expiresAt = expiresAt;
+          return true;
+        }
+      }
+    } catch (error) {
+      logger.error('Error initializing token:', error);
     }
-  });
+    return false;
+  }
+
+  async saveToken(token, expiresIn) {
+    this.token = token;
+    this.expiresAt = Date.now() + (expiresIn * 1000);
+    
+    try {
+      await chrome.storage.local.set({
+        [this.TOKEN_STORAGE_KEY]: {
+          token: this.token,
+          expiresAt: this.expiresAt
+        }
+      });
+    } catch (error) {
+      logger.error('Error saving token:', error);
+    }
+  }
+
+  async getValidToken() {
+    // If we have a valid token that's not close to expiring
+    if (this.token && this.expiresAt && Date.now() < (this.expiresAt - 300000)) {
+      return this.token;
+    }
+
+    // Otherwise, get a new token
+    return this.refreshToken();
+  }
+
+  async refreshToken() {
+    try {
+      return new Promise((resolve, reject) => {
+        const authUrl = `https://accounts.google.com/o/oauth2/auth?response_type=token&client_id=${config.clientId}&scope=${config.scopes}&redirect_uri=${config.redirectUri}`;
+        
+        chrome.identity.launchWebAuthFlow(
+          { url: authUrl, interactive: false },
+          async (redirectUrl) => {
+            if (redirectUrl) {
+              const parsed = parse(redirectUrl.substr(config.redirectUri.length + 1));
+              // Get token info to get expiration
+              const tokenInfo = await this.getTokenInfo(parsed.access_token);
+              await this.saveToken(parsed.access_token, tokenInfo.expires_in);
+              resolve(this.token);
+            } else {
+              // If silent refresh fails, try interactive login
+              this.login().then(resolve).catch(reject);
+            }
+          }
+        );
+      });
+    } catch (error) {
+      logger.error('Error refreshing token:', error);
+      throw error;
+    }
+  }
+
+  async login() {
+    return new Promise((resolve, reject) => {
+      const authUrl = `https://accounts.google.com/o/oauth2/auth?response_type=token&client_id=${config.clientId}&scope=${config.scopes}&redirect_uri=${config.redirectUri}`;
+
+      chrome.identity.launchWebAuthFlow(
+        { url: authUrl, interactive: true },
+        async (redirectUrl) => {
+          if (redirectUrl) {
+            const parsed = parse(redirectUrl.substr(config.redirectUri.length + 1));
+            const tokenInfo = await this.getTokenInfo(parsed.access_token);
+            await this.saveToken(parsed.access_token, tokenInfo.expires_in);
+            resolve(this.token);
+          } else {
+            reject(new Error("Authentication failed"));
+          }
+        }
+      );
+    });
+  }
+
+  async getTokenInfo(token) {
+    const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${token}`);
+    if (!response.ok) {
+      throw new Error('Failed to get token info');
+    }
+    return response.json();
+  }
+}
+
+const tokenManager = new TokenManager();
+
+function parseTime(timeString) {
+  const [hours, minutes] = timeString.split(':').map(Number);
+  return { hours, minutes };
 }
 
 function getNextAvailableTime(duration) {
@@ -76,72 +157,68 @@ function getNextAvailableTime(duration) {
         return date;
       }
 
-      // Also modify the conflict check to be more lenient
-function findNextAvailableSlot() {
-  let attempts = 0;
-  while (attempts < 7 * 24 * 4) {
-    if (!isWorkDay(currentTime)) {
-      currentTime.setDate(currentTime.getDate() + 1);
-      currentTime.setHours(startTime.hours, startTime.minutes, 0, 0);
-      continue;
-    }
+      function findNextAvailableSlot() {
+        let attempts = 0;
+        while (attempts < 7 * 24 * 4) {
+          if (!isWorkDay(currentTime)) {
+            currentTime.setDate(currentTime.getDate() + 1);
+            currentTime.setHours(startTime.hours, startTime.minutes, 0, 0);
+            continue;
+          }
 
-    currentTime = adjustToWorkHours(currentTime);
+          currentTime = adjustToWorkHours(currentTime);
 
-    if (!isWithinWorkHours(currentTime)) {
-      currentTime.setDate(currentTime.getDate() + 1);
-      currentTime.setHours(startTime.hours, startTime.minutes, 0, 0);
-      continue;
-    }
+          if (!isWithinWorkHours(currentTime)) {
+            currentTime.setDate(currentTime.getDate() + 1);
+            currentTime.setHours(startTime.hours, startTime.minutes, 0, 0);
+            continue;
+          }
 
-    const endTime = new Date(currentTime.getTime() + duration * 60000);
+          const endTime = new Date(currentTime.getTime() + duration * 60000);
 
-    // Modified conflict check to be more specific
-    const conflict = scheduledEvents.find(event => {
-      const eventStart = event.start;
-      const eventEnd = event.end;
-      
-      // Only consider conflicts within the same day
-      if (eventStart.getDate() !== currentTime.getDate()) {
-        return false;
-      }
+          const conflict = scheduledEvents.find(event => {
+            const eventStart = event.start;
+            const eventEnd = event.end;
+            
+            if (eventStart.getDate() !== currentTime.getDate()) {
+              return false;
+            }
 
-      return (currentTime >= eventStart && currentTime < eventEnd) ||
-             (endTime > eventStart && endTime <= eventEnd) ||
-             (currentTime <= eventStart && endTime >= eventEnd);
-    });
+            return (currentTime >= eventStart && currentTime < eventEnd) ||
+                   (endTime > eventStart && endTime <= eventEnd) ||
+                   (currentTime <= eventStart && endTime >= eventEnd);
+          });
 
-    if (!conflict && isWithinWorkHours(endTime)) {
-      console.log('Available slot found:', {
-        start: currentTime.toLocaleString(),
-        end: endTime.toLocaleString()
-      });
-      return currentTime;
-    }
+          if (!conflict && isWithinWorkHours(endTime)) {
+            console.log('Available slot found:', {
+              start: currentTime.toLocaleString(),
+              end: endTime.toLocaleString()
+            });
+            return currentTime;
+          }
 
-    if (conflict) {
-      console.log('Conflict found:', {
-        attemptedSlot: {
-          start: currentTime.toLocaleString(),
-          end: endTime.toLocaleString()
-        },
-        conflictingEvent: {
-          summary: conflict.summary,
-          start: conflict.start.toLocaleString(),
-          end: conflict.end.toLocaleString()
+          if (conflict) {
+            console.log('Conflict found:', {
+              attemptedSlot: {
+                start: currentTime.toLocaleString(),
+                end: endTime.toLocaleString()
+              },
+              conflictingEvent: {
+                summary: conflict.summary,
+                start: conflict.start.toLocaleString(),
+                end: conflict.end.toLocaleString()
+              }
+            });
+            currentTime = new Date(conflict.end.getTime() + 15 * 60000);
+          } else {
+            currentTime.setTime(currentTime.getTime() + 15 * 60000);
+          }
+
+          attempts++;
         }
-      });
-      // Move to 15 minutes after conflict ends instead of to the end
-      currentTime = new Date(conflict.end.getTime() + 15 * 60000);
-    } else {
-      currentTime.setTime(currentTime.getTime() + 15 * 60000);
-    }
 
-    attempts++;
-  }
-
-  return null;
-}
+        return null;
+      }
 
       const availableTime = findNextAvailableSlot();
       if (availableTime) {
@@ -153,42 +230,34 @@ function findNextAvailableSlot() {
   });
 }
 
-function parseTime(timeString) {
-  const [hours, minutes] = timeString.split(':').map(Number);
-  return { hours, minutes };
-}
-
-function addTaskToCalendar(task, duration, callback) {
-  if (!token) {
-    logger.error('No valid token available. Please log in first.');
-    return callback({ success: false, error: 'Not authenticated' });
-  }
-
-  console.log('Attempting to schedule task:', task.title, 'Duration:', duration, 'minutes');
-  console.log('Local timezone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
-
-  // First refresh the calendar events
-  const now = new Date();
-  const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now.toISOString()}&timeMax=${oneWeekLater.toISOString()}&singleEvents=true&orderBy=startTime`;
-
-  // Fetch latest calendar events before scheduling
-  fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${token}`
+async function addTaskToCalendar(task, duration, callback) {
+  try {
+    const token = await tokenManager.getValidToken();
+    if (!token) {
+      throw new Error('Not authenticated');
     }
-  })
-  .then(response => response.json())
-  .then(data => {
+
+    console.log('Attempting to schedule task:', task.title, 'Duration:', duration, 'minutes');
+    console.log('Local timezone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
+
+    const now = new Date();
+    const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now.toISOString()}&timeMax=${oneWeekLater.toISOString()}&singleEvents=true&orderBy=startTime`;
+
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await response.json();
+
     if (data.error) {
       throw new Error('Error fetching events: ' + data.error.message);
     }
-    
-    // Update scheduledEvents with latest calendar data
+
     scheduledEvents = data.items
       .filter(event => {
-        // Only include events with specific times (not all-day events)
         if (!event.start.dateTime || !event.end.dateTime) {
           return false;
         }
@@ -197,7 +266,6 @@ function addTaskToCalendar(task, duration, callback) {
         const endTime = new Date(event.end.dateTime);
         const durationHours = (endTime - startTime) / (1000 * 60 * 60);
 
-        // Filter out suspicious 24-hour events
         if (durationHours >= 24) {
           return false;
         }
@@ -212,10 +280,7 @@ function addTaskToCalendar(task, duration, callback) {
 
     console.log('Updated calendar events before scheduling:', scheduledEvents);
     
-    // Now proceed with finding next available time and scheduling
-    return getNextAvailableTime(duration);
-  })
-  .then((startTime) => {
+    const startTime = await getNextAvailableTime(duration);
     const endTime = new Date(startTime.getTime() + duration * 60000);
 
     console.log('Scheduled time found:', { startTime, endTime });
@@ -233,7 +298,7 @@ function addTaskToCalendar(task, duration, callback) {
       }
     };
 
-    return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    const createResponse = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -241,35 +306,122 @@ function addTaskToCalendar(task, duration, callback) {
       },
       body: JSON.stringify(event)
     });
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.error) {
-      logger.error('Error creating event:', data.error);
-      callback({ success: false, error: data.error.message });
-    } else {
-      logger.debug('Event created:', data);
-      scheduledEvents.push({ 
-        summary: data.summary,
-        start: new Date(data.start.dateTime), 
-        end: new Date(data.end.dateTime) 
-      });
-      console.log('Updated scheduled events. Total events:', scheduledEvents.length);
-      callback({ 
-        success: true, 
-        eventLink: data.htmlLink,
-        eventStart: data.start.dateTime, // Pass the start time
-        eventEnd: data.end.dateTime // Pass the end time
-      });
+
+    const createdEvent = await createResponse.json();
+
+    if (createdEvent.error) {
+      throw new Error(createdEvent.error.message);
     }
-  })
-  .catch(error => {
+
+    scheduledEvents.push({ 
+      summary: createdEvent.summary,
+      start: new Date(createdEvent.start.dateTime), 
+      end: new Date(createdEvent.end.dateTime) 
+    });
+
+    console.log('Updated scheduled events. Total events:', scheduledEvents.length);
+    callback({ 
+      success: true, 
+      eventLink: createdEvent.htmlLink,
+      eventStart: createdEvent.start.dateTime,
+      eventEnd: createdEvent.end.dateTime
+    });
+
+  } catch (error) {
     logger.error('Error in scheduling process:', error);
     callback({ success: false, error: error.message || 'Failed to schedule event' });
-  });
+  }
 }
 
-// Utility function to parse URL parameters
+async function fetchTasks(callback) {
+  try {
+    const token = await tokenManager.getValidToken();
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    const response = await fetch('https://tasks.googleapis.com/tasks/v1/lists/@default/tasks', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error.message);
+    }
+    
+    callback({ success: true, tasks: data.items || [] });
+  } catch (error) {
+    logger.error('Error fetching tasks:', error);
+    callback({ success: false, error: error.message });
+  }
+}
+
+async function initializeScheduledEvents() {
+  try {
+    const token = await tokenManager.getValidToken();
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    const now = new Date();
+    const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now.toISOString()}&timeMax=${oneWeekLater.toISOString()}&singleEvents=true&orderBy=startTime`;
+
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error('Error fetching events: ' + data.error.message);
+    }
+
+    console.log('All fetched events:', data.items);
+    
+    scheduledEvents = data.items
+      .filter(event => {
+        if (!event.start.dateTime || !event.end.dateTime) {
+          console.log('Filtered out all-day event:', event);
+          return false;
+        }
+
+        const startTime = new Date(event.start.dateTime);
+        const endTime = new Date(event.end.dateTime);
+        const durationHours = (endTime - startTime) / (1000 * 60 * 60);
+
+        if (durationHours >= 24) {
+          console.log('Filtered out 24-hour event:', event);
+          return false;
+        }
+
+        if (!event.summary) {
+          console.log('Filtered out untitled event:', event);
+          return false;
+        }
+
+        return true;
+      })
+      .map(event => ({
+        summary: event.summary,
+        start: new Date(event.start.dateTime),
+        end: new Date(event.end.dateTime)
+      }));
+
+    console.log('Final filtered events:', scheduledEvents.map(event => ({
+      summary: event.summary,
+      start: event.start.toLocaleString(),
+      end: event.end.toLocaleString(),
+      duration: (event.end - event.start) / (1000 * 60) + ' minutes'
+    })));
+
+  } catch (error) { }
+}
+
 function parse(str) {
   if (typeof str !== 'string') return {};
   str = str.trim().replace(/^(\?|#|&)/, '');
@@ -289,166 +441,38 @@ function parse(str) {
   }, {});
 }
 
-// Initialize scheduledEvents with existing calendar events
-function initializeScheduledEvents() {
-  if (!token) {
-    logger.error('No valid token available. Please log in first.');
-    return;
-  }
-
-  const now = new Date();
-  const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now.toISOString()}&timeMax=${oneWeekLater.toISOString()}&singleEvents=true&orderBy=startTime`;
-
-  fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.error) {
-      logger.error('Error fetching events:', data.error);
-    } else {
-      // Log raw events before filtering
-      console.log('All fetched events:', data.items);
-      
-      scheduledEvents = data.items
-        .filter(event => {
-          // Only include events with specific times (not all-day events)
-          if (!event.start.dateTime || !event.end.dateTime) {
-            console.log('Filtered out all-day event:', event);
-            return false;
-          }
-
-          const startTime = new Date(event.start.dateTime);
-          const endTime = new Date(event.end.dateTime);
-          const durationHours = (endTime - startTime) / (1000 * 60 * 60);
-
-          // Filter out suspicious 24-hour events
-          if (durationHours >= 24) {
-            console.log('Filtered out 24-hour event:', event);
-            return false;
-          }
-
-          // Filter out events without summary/title
-          if (!event.summary) {
-            console.log('Filtered out untitled event:', event);
-            return false;
-          }
-
-          return true;
-        })
-        .map(event => ({
-          summary: event.summary,
-          start: new Date(event.start.dateTime),
-          end: new Date(event.end.dateTime)
-        }));
-
-      console.log('Final filtered events:', scheduledEvents.map(event => ({
-        summary: event.summary,
-        start: event.start.toLocaleString(),
-        end: event.end.toLocaleString(),
-        duration: (event.end - event.start) / (1000 * 60) + ' minutes'
-      })));
-    }
-  })
-  .catch(error => {
-    logger.error('Error fetching events:', error);
-  });
-}
-
-function fetchTasks(callback) {
-  if (!token) {
-    logger.error('No valid token available. Please log in first.');
-    return callback({ success: false, error: 'Not authenticated' });
-  }
-
-  fetch('https://tasks.googleapis.com/tasks/v1/lists/@default/tasks', {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.error) {
-      logger.error('Error fetching tasks:', data.error);
-      callback({ success: false, error: data.error.message });
-    } else {
-      logger.debug('Tasks fetched:', data.items);
-      callback({ success: true, tasks: data.items || [] });
-    }
-  })
-  .catch(error => {
-    logger.error('Error fetching tasks:', error);
-    callback({ success: false, error: 'Failed to fetch tasks' });
-  });
-}
-
-// Initialize scheduledEvents with existing calendar events
-function initializeScheduledEvents() {
-  if (!token) {
-    logger.error('No valid token available. Please log in first.');
-    return;
-  }
-
-  const now = new Date();
-  const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now.toISOString()}&timeMax=${oneWeekLater.toISOString()}&singleEvents=true&orderBy=startTime`;
-
-  fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.error) {
-      logger.error('Error fetching events:', data.error);
-    } else {
-      scheduledEvents = data.items.map(event => ({
-        start: new Date(event.start.dateTime || event.start.date),
-        end: new Date(event.end.dateTime || event.end.date)
-      }));
-      console.log('Initialized scheduled events:', scheduledEvents);
-    }
-  })
-  .catch(error => {
-    logger.error('Error fetching events:', error);
-  });
-}
-
-// Listen for messages from the popup
+// Message handler
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'login') {
-    login((loginResult) => {
-      if (loginResult) {
+    tokenManager.login()
+      .then((token) => {
         initializeScheduledEvents();
-      }
-      sendResponse(loginResult);
-    });
-    return true;  // Indicates we will send a response asynchronously
-  } else if (request.action === 'getTasks') {
-    if (token) {
-      fetchTasks(sendResponse);
-    } else {
-      login((loginResult) => {
-        if (loginResult) {
-          initializeScheduledEvents();
-          fetchTasks(sendResponse);
-        } else {
-          sendResponse({ success: false, error: 'Login failed' });
-        }
+        sendResponse(token);
+      })
+      .catch((error) => {
+        logger.error('Login error:', error);
+        sendResponse(null);
       });
-    }
-    return true;  // Indicates we will send a response asynchronously
+    return true;
+  } else if (request.action === 'getTasks') {
+    fetchTasks(sendResponse);
+    return true;
   } else if (request.action === 'addToCalendar') {
     addTaskToCalendar(request.task, request.duration, sendResponse);
-    return true;  // Indicates we will send a response asynchronously
+    return true;
   }
 });
+
+// Initialize configuration and logger
+function init(cfg, log) {
+  Object.assign(config, cfg);
+  logger = log || console;
+  tokenManager.init().then(() => {
+    if (tokenManager.token) {
+      initializeScheduledEvents();
+    }
+  });
+}
 
 // Initialize the extension
 init({}, console);
