@@ -21,6 +21,54 @@
     </header>
     <main class="main-content">
       <div id="loginStatus"></div>
+      <!-- Add this button before the main content -->
+      <button id="addTaskButton" class="fab-button">
+        <i class="material-icons">add</i>
+      </button>
+      <!-- Add this section before the task list -->
+      <div class="add-task-container">
+        <div class="form-header">
+          <h3>Create New Task</h3>
+          <button id="closeFormButton" class="close-button">
+            <i class="material-icons">close</i>
+          </button>
+        </div>
+        <div class="form-content">
+          <form id="addTaskForm">
+            <div class="form-group">
+              <label for="taskTitle">Task Title</label>
+              <input 
+                type="text" 
+                id="taskTitle" 
+                placeholder="Enter task title"
+                required
+              >
+            </div>
+            
+            <div class="form-group">
+              <label for="taskNotes">Description</label>
+              <textarea 
+                id="taskNotes" 
+                placeholder="Add any additional notes"
+              ></textarea>
+            </div>
+            
+            <div class="form-group">
+              <label for="taskCategory">Category</label>
+              <select id="taskCategory">
+                <option value="work">Work</option>
+                <option value="personal">Personal</option>
+                <option value="study">Study</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            
+            <button type="submit">
+              Create Task
+            </button>
+          </form>
+        </div>
+      </div>
       <ul id="taskList" class="task-list"></ul>
     </main>
   </div>

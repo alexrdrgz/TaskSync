@@ -37,10 +37,10 @@
     min-height: 400px;
     background-color: var(--background);
     color: var(--foreground);
-}
+    overflow-x: hidden;
+  }
 
 header {
-  /* width: 100%; */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -73,7 +73,7 @@ main {
 }
 
 .card-content {
-  padding: 1rem;
+  padding: 1rem
 }
 
 .card-title {
@@ -132,12 +132,6 @@ main {
   color: var(--blue-500);
 }
 
-/* .mdl-snackbar--active {
-  transform: translate(0, 0);
-  pointer-events: auto;
-  transition: transform 0.25s cubic-bezier(0, 0, 0.2, 1);
-} */
-
 .snackbar {
   position: fixed;
   bottom: 0px;
@@ -176,5 +170,180 @@ main {
 
 .no-show {
   display: none !important;
+}
+
+/* Add Task Form */
+.add-task-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 300px;
+  height: 100%;
+  background-color: var(--background);
+  z-index: 1000;
+  display: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.add-task-container.active {
+  display: block;
+  opacity: 1;
+}
+
+.form-header {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(to right, var(--blue-500), var(--purple-600));
+  color: white;
+}
+
+.form-header h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  color: white;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: white;
+  opacity: 0.8;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.close-button:hover {
+  opacity: 1;
+}
+
+.form-content {
+  padding: 1rem;
+  height: calc(100% - 4rem);
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* FAB Button */
+.fab-button {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: linear-gradient(to right, var(--blue-500), var(--purple-600));
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: transform 0.2s, box-shadow 0.2s;
+  z-index: 999;
+}
+
+.fab-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.fab-button i {
+  font-size: 1.5rem;
+}
+
+.card-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.complete-task-btn {
+  background: none;
+  border: none;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 50%;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.complete-task-btn:hover {
+  color: var(--google-green);
+  background-color: rgba(15, 157, 88, 0.1); /* Google green with low opacity */
+}
+
+.complete-task-btn i {
+  font-size: 1.25rem;
+}
+
+/* Form Groups */
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: var(--muted-foreground);
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  background-color: var(--background);
+  color: var(--foreground);
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.form-group textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.form-group select {
+  cursor: pointer;
+}
+
+#addTaskForm button[type="submit"] {
+  width: 100%;
+  padding: 0.5rem;
+  background: linear-gradient(to right, var(--blue-500), var(--purple-600));
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+#addTaskForm button[type="submit"]:hover {
+  opacity: 0.9;
 }
 
