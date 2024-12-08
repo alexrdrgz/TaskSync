@@ -41,7 +41,6 @@
   }
 
 header {
-  /* width: 100%; */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -133,12 +132,6 @@ main {
   color: var(--blue-500);
 }
 
-/* .mdl-snackbar--active {
-  transform: translate(0, 0);
-  pointer-events: auto;
-  transition: transform 0.25s cubic-bezier(0, 0, 0.2, 1);
-} */
-
 .snackbar {
   position: fixed;
   bottom: 0px;
@@ -179,12 +172,12 @@ main {
   display: none !important;
 }
 
-/* Update the Add Task Form Styles */
+/* Add Task Form */
 .add-task-container {
   position: fixed;
   top: 0;
   left: 0;
-  width: 300px; /* Match popup width */
+  width: 300px;
   height: 100%;
   background-color: var(--background);
   z-index: 1000;
@@ -241,7 +234,7 @@ main {
   box-sizing: border-box;
 }
 
-/* Restore FAB button styles */
+/* FAB Button */
 .fab-button {
   position: fixed;
   bottom: 1rem;
@@ -299,7 +292,7 @@ main {
   font-size: 1.25rem;
 }
 
-/* Restore form group styles */
+/* Form Groups */
 .form-group {
   margin-bottom: 1rem;
 }
