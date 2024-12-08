@@ -7,7 +7,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function showTasks(tasks) {
     taskList.innerHTML = '';
-    tasks.forEach(task => {
+    // Filter out completed tasks before displaying
+    const incompleteTasks = tasks.filter(task => task.status !== 'completed');
+    
+    incompleteTasks.forEach(task => {
       const li = document.createElement('li');
       li.className = 'card';
       li.innerHTML = `
@@ -42,6 +45,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
       taskList.appendChild(li);
     });
+
+    // Show message if no incomplete tasks
+    if (incompleteTasks.length === 0) {
+      taskList.innerHTML = '<li class="card"><div class="card-content"><p class="card-description">No tasks to display</p></div></li>';
+    }
   }
 
   function getHeaderColor(category) {
