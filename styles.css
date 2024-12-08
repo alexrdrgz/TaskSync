@@ -215,8 +215,20 @@ main {
 }
 
 .close-button {
+  background: none;
+  border: none;
   color: white;
   opacity: 0.8;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.close-button:hover {
+  opacity: 1;
 }
 
 .form-content {
