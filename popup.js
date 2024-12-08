@@ -58,19 +58,23 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function addToCalendar(task, duration) {
+    const button = event.currentTarget;
+    const originalText = button.innerHTML;
+    showLoading(button);
+
     chrome.runtime.sendMessage({ action: 'addToCalendar', task: task, duration: duration }, function(response) {
+      hideLoading(button, originalText);
       if (response.success) {
         const startTime = new Date(response.eventStart);
-        const endTime = new Date(response.eventEnd);
         const startDate = startTime.toLocaleDateString();
         const startTimeString = startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const endTimeString = endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         showSnackbar(`Scheduled for ${startDate} at ${startTimeString}`);
       } else {
         showSnackbar('Failed to add task to calendar: ' + response.error);
       }
     });
   }
+
   function showSnackbar(message) {
     const snackbar = document.getElementById('snackbar');
     const snackbarMessage = snackbar.querySelector('.snackbar-message');
@@ -107,26 +111,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
   addTaskForm.addEventListener('submit', function(event) {
     event.preventDefault();
-    const taskTitle = document.getElementById('taskTitle').value;
-    const taskNotes = document.getElementById('taskNotes').value;
-    const taskCategory = document.getElementById('taskCategory').value;
+    const submitButton = addTaskForm.querySelector('button[type="submit"]');
+    const originalText = submitButton.innerHTML;
+    showLoading(submitButton);
 
     const newTask = {
-      title: taskTitle,
-      notes: taskNotes,
-      category: taskCategory
+      title: document.getElementById('taskTitle').value,
+      notes: document.getElementById('taskNotes').value
     };
 
     chrome.runtime.sendMessage({ action: 'addTask', task: newTask }, function(response) {
+      hideLoading(submitButton, originalText);
       if (chrome.runtime.lastError) {
         showSnackbar('Failed to add task: ' + chrome.runtime.lastError.message);
         return;
       }
 
       if (response && response.success) {
-        fetchTasks(); // Refresh the task list
+        fetchTasks();
         showSnackbar('Task added successfully');
-        addTaskForm.reset(); // Clear the form
+        addTaskForm.reset();
         addTaskContainer.classList.remove('active');
         addTaskButton.style.display = 'flex';
       } else {
@@ -149,7 +153,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Add this new function to handle task completion
   function completeTask(taskId) {
-    console.log('Attempting to complete task with ID:', taskId);
+    const button = event.currentTarget;
+    if (!confirm('Are you sure you want to complete this task?')) {
+      return;
+    }
+
+    showLoading(button);
     try {
       chrome.runtime.sendMessage({ 
         action: 'completeTask', 
@@ -158,20 +167,48 @@ document.addEventListener('DOMContentLoaded', function() {
         if (chrome.runtime.lastError) {
           console.error('Runtime error:', chrome.runtime.lastError);
           showSnackbar('Failed to complete task: ' + chrome.runtime.lastError.message);
+          hideLoading(button, '<i class="material-icons">check_circle_outline</i>');
           return;
         }
         
-        console.log('Complete task response:', response);
         if (response && response.success) {
           showSnackbar('Task completed');
           fetchTasks(); // Refresh the task list
         } else {
           showSnackbar('Failed to complete task: ' + (response ? response.error : 'Unknown error'));
+          hideLoading(button, '<i class="material-icons">check_circle_outline</i>');
         }
       });
     } catch (error) {
       console.error('Error in completeTask:', error);
       showSnackbar('Failed to complete task: ' + error.message);
+      hideLoading(button, '<i class="material-icons">check_circle_outline</i>');
     }
   }
+
+  // Add loading states
+  function showLoading(element) {
+    element.disabled = true;
+    element.innerHTML = '<i class="material-icons rotating">refresh</i>';
+  }
+
+  function hideLoading(element, originalText) {
+    element.disabled = false;
+    element.innerHTML = originalText;
+  }
+
+  // Add keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && addTaskContainer.classList.contains('active')) {
+      closeFormButton.click();
+    }
+  });
+
+  // Add Enter key support for form submission
+  document.getElementById('taskTitle').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      addTaskForm.querySelector('button[type="submit"]').click();
+    }
+  });
 });

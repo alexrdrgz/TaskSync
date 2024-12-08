@@ -360,15 +360,13 @@ async function initializeScheduledEvents() {
 
 async function completeTask(taskId, callback) {
   try {
-    console.log('Completing task with ID:', taskId);
     const token = await tokenManager.getValidToken();
     if (!token) {
-      throw new Error('Not authenticated');
+      callback({ success: false, error: 'Not authenticated. Please log in again.' });
+      return;
     }
 
     const url = `https://tasks.googleapis.com/tasks/v1/lists/@default/tasks/${taskId}`;
-    console.log('Making PATCH request to:', url);
-
     const response = await fetch(url, {
       method: 'PATCH',
       headers: {
@@ -381,17 +379,20 @@ async function completeTask(taskId, callback) {
       })
     });
 
-    console.log('Update response status:', response.status);
-
     if (response.status === 200) {
       callback({ success: true });
     } else {
       const data = await response.json();
-      throw new Error(data.error.message);
+      callback({ 
+        success: false, 
+        error: data.error?.message || 'Failed to complete task. Please try again.' 
+      });
     }
   } catch (error) {
-    console.error('Error completing task:', error);
-    callback({ success: false, error: error.message });
+    callback({ 
+      success: false, 
+      error: 'Network error. Please check your connection and try again.' 
+    });
   }
 }
 
