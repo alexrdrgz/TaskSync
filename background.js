@@ -1,10 +1,5 @@
+import { config } from './config.js';
 import { TokenManager } from './tokenManager.js';
-// Configuration for OAuth 2.0
-const config = {
-  clientId: '727538399732-dsfs266pvnii8hkafhf4d5v54q1gq9qe.apps.googleusercontent.com',
-  scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/tasks',
-  redirectUri: `https://${chrome.runtime.id}.chromiumapp.org`
-};
 
 let logger = console;
 let scheduledEvents = [];
