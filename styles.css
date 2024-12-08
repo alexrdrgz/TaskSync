@@ -73,7 +73,7 @@ main {
 }
 
 .card-content {
-  padding: 1rem;
+  padding: 1rem
 }
 
 .card-title {
@@ -178,26 +178,112 @@ main {
   display: none !important;
 }
 
-/* Add Task Form Styles */
+/* Update the Add Task Form Styles for full-screen modal */
 .add-task-container {
-  background-color: var(--card-background);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--background);
+  z-index: 1000;
   display: none;
   opacity: 0;
-  transform: translateY(-10px);
-  transition: opacity 0.3s, transform 0.3s;
+  transition: opacity 0.3s;
 }
 
-.add-task-container h3 {
+.add-task-container.active {
+  display: block;
+  opacity: 1;
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(to right, var(--blue-500), var(--purple-600));
+  color: white;
+}
+
+.form-header h3 {
   font-size: 1.25rem;
   font-weight: 600;
-  margin: 0 0 1rem 0;
-  color: var(--foreground);
+  margin: 0;
+  color: white;
 }
 
+.close-button {
+  color: white;
+  opacity: 0.8;
+}
+
+.form-content {
+  padding: 1rem;
+  height: calc(100% - 4rem); /* Subtract header height */
+  overflow-y: auto;
+}
+
+/* Restore FAB button styles */
+.fab-button {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: linear-gradient(to right, var(--blue-500), var(--purple-600));
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: transform 0.2s, box-shadow 0.2s;
+  z-index: 999;
+}
+
+.fab-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.fab-button i {
+  font-size: 1.5rem;
+}
+
+.card-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.complete-task-btn {
+  background: none;
+  border: none;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 50%;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.complete-task-btn:hover {
+  color: var(--google-green);
+  background-color: rgba(15, 157, 88, 0.1); /* Google green with low opacity */
+}
+
+.complete-task-btn i {
+  font-size: 1.25rem;
+}
+
+/* Restore form group styles */
 .form-group {
   margin-bottom: 1rem;
 }
@@ -246,97 +332,5 @@ main {
 
 #addTaskForm button[type="submit"]:hover {
   opacity: 0.9;
-}
-
-.fab-button {
-  position: fixed;
-  bottom: 1rem;
-  right: 1rem;
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: 50%;
-  background: linear-gradient(to right, var(--blue-500), var(--purple-600));
-  color: white;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-  transition: transform 0.2s, box-shadow 0.2s;
-  z-index: 100;
-}
-
-.fab-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-}
-
-.fab-button i {
-  font-size: 1.5rem;
-}
-
-/* Show the form when active */
-.add-task-container.active {
-  display: block;
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Add these styles for the close button */
-.close-button {
-  background: none;
-  border: none;
-  color: white;
-  padding: 0.5rem;
-  cursor: pointer;
-  opacity: 0.8;
-  transition: opacity 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.close-button:hover {
-  opacity: 1;
-}
-
-/* Add a separate class for the form header */
-.form-header {
-  position: relative;
-  height: 2.5rem;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding: 0 0.5rem;
-}
-
-.card-title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.complete-task-btn {
-  background: none;
-  border: none;
-  color: var(--muted-foreground);
-  cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 50%;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.complete-task-btn:hover {
-  color: var(--google-green);
-  background-color: rgba(15, 157, 88, 0.1); /* Google green with low opacity */
-}
-
-.complete-task-btn i {
-  font-size: 1.25rem;
 }
 
