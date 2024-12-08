@@ -37,7 +37,8 @@
     min-height: 400px;
     background-color: var(--background);
     color: var(--foreground);
-}
+    overflow-x: hidden;
+  }
 
 header {
   /* width: 100%; */
@@ -178,12 +179,12 @@ main {
   display: none !important;
 }
 
-/* Update the Add Task Form Styles for full-screen modal */
+/* Update the Add Task Form Styles */
 .add-task-container {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
+  width: 300px; /* Match popup width */
   height: 100%;
   background-color: var(--background);
   z-index: 1000;
@@ -198,6 +199,8 @@ main {
 }
 
 .form-header {
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -233,8 +236,9 @@ main {
 
 .form-content {
   padding: 1rem;
-  height: calc(100% - 4rem); /* Subtract header height */
+  height: calc(100% - 4rem);
   overflow-y: auto;
+  box-sizing: border-box;
 }
 
 /* Restore FAB button styles */
@@ -318,6 +322,8 @@ main {
   font-size: 0.875rem;
   background-color: var(--background);
   color: var(--foreground);
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .form-group textarea {
@@ -340,6 +346,8 @@ main {
   font-weight: 500;
   cursor: pointer;
   transition: opacity 0.2s;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 #addTaskForm button[type="submit"]:hover {
