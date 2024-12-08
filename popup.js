@@ -1,5 +1,9 @@
 document.addEventListener('DOMContentLoaded', function() {
   const taskList = document.getElementById('taskList');
+  const addTaskForm = document.getElementById('addTaskForm');
+  const addTaskButton = document.getElementById('addTaskButton');
+  const closeFormButton = document.getElementById('closeFormButton');
+  const addTaskContainer = document.querySelector('.add-task-container');
 
   function showTasks(tasks) {
     taskList.innerHTML = '';
@@ -9,7 +13,12 @@ document.addEventListener('DOMContentLoaded', function() {
       li.innerHTML = `
         <div class="card-header" style="background-color: ${getHeaderColor(task.category)}"></div>
         <div class="card-content">
-          <h2 class="card-title">${task.title}</h2>
+          <div class="card-title-row">
+            <h2 class="card-title">${task.title}</h2>
+            <button class="complete-task-btn" data-task-id="${task.id}">
+              <i class="material-icons">check_circle_outline</i>
+            </button>
+          </div>
           ${task.notes ? `<p class="card-description">${task.notes}</p>` : ''}
           <div class="button-group">
             <button class="duration-btn button" data-duration="15">15m</button>
@@ -18,12 +27,19 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
       `;
+
+      // Add event listeners for duration buttons
       li.querySelectorAll('.duration-btn').forEach(btn => {
         btn.addEventListener('click', function() {
           const duration = parseInt(this.getAttribute('data-duration'));
           addToCalendar(task, duration);
         });
       });
+
+      // Add event listener for complete button
+      const completeBtn = li.querySelector('.complete-task-btn');
+      completeBtn.addEventListener('click', () => completeTask(task.id));
+
       taskList.appendChild(li);
     });
   }
@@ -68,10 +84,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function fetchTasks() {
     chrome.runtime.sendMessage({ action: 'getTasks' }, function(response) {
-      if (response.success) {
+      if (chrome.runtime.lastError) {
+        taskList.innerHTML = '<li class="mdl-typography--text-center">Failed to fetch tasks: ' + chrome.runtime.lastError.message + '</li>';
+        return;
+      }
+
+      if (response && response.success) {
         showTasks(response.tasks);
       } else {
-        taskList.innerHTML = '<li class="mdl-typography--text-center">Failed to fetch tasks: ' + response.error + '</li>';
+        taskList.innerHTML = '<li class="mdl-typography--text-center">Failed to fetch tasks: ' + (response ? response.error : 'Unknown error') + '</li>';
       }
     });
   }
@@ -83,4 +104,74 @@ document.addEventListener('DOMContentLoaded', function() {
   settingsButton.addEventListener('click', function() {
       chrome.runtime.openOptionsPage();
   });
+
+  addTaskForm.addEventListener('submit', function(event) {
+    event.preventDefault();
+    const taskTitle = document.getElementById('taskTitle').value;
+    const taskNotes = document.getElementById('taskNotes').value;
+    const taskCategory = document.getElementById('taskCategory').value;
+
+    const newTask = {
+      title: taskTitle,
+      notes: taskNotes,
+      category: taskCategory
+    };
+
+    chrome.runtime.sendMessage({ action: 'addTask', task: newTask }, function(response) {
+      if (chrome.runtime.lastError) {
+        showSnackbar('Failed to add task: ' + chrome.runtime.lastError.message);
+        return;
+      }
+
+      if (response && response.success) {
+        fetchTasks(); // Refresh the task list
+        showSnackbar('Task added successfully');
+        addTaskForm.reset(); // Clear the form
+        addTaskContainer.classList.remove('active');
+        addTaskButton.style.display = 'flex';
+      } else {
+        showSnackbar('Failed to add task: ' + (response ? response.error : 'Unknown error'));
+      }
+    });
+  });
+
+  // Show form when FAB is clicked
+  addTaskButton.addEventListener('click', () => {
+    addTaskContainer.classList.add('active');
+    addTaskButton.style.display = 'none'; // Hide the FAB when form is shown
+  });
+
+  // Hide form when close button is clicked
+  closeFormButton.addEventListener('click', () => {
+    addTaskContainer.classList.remove('active');
+    addTaskButton.style.display = 'flex';
+  });
+
+  // Add this new function to handle task completion
+  function completeTask(taskId) {
+    console.log('Attempting to complete task with ID:', taskId);
+    try {
+      chrome.runtime.sendMessage({ 
+        action: 'completeTask', 
+        taskId: taskId 
+      }, function(response) {
+        if (chrome.runtime.lastError) {
+          console.error('Runtime error:', chrome.runtime.lastError);
+          showSnackbar('Failed to complete task: ' + chrome.runtime.lastError.message);
+          return;
+        }
+        
+        console.log('Complete task response:', response);
+        if (response && response.success) {
+          showSnackbar('Task completed');
+          fetchTasks(); // Refresh the task list
+        } else {
+          showSnackbar('Failed to complete task: ' + (response ? response.error : 'Unknown error'));
+        }
+      });
+    } catch (error) {
+      console.error('Error in completeTask:', error);
+      showSnackbar('Failed to complete task: ' + error.message);
+    }
+  }
 });

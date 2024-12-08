@@ -2,7 +2,7 @@ import { TokenManager } from './tokenManager.js';
 // Configuration for OAuth 2.0
 const config = {
   clientId: '727538399732-dsfs266pvnii8hkafhf4d5v54q1gq9qe.apps.googleusercontent.com',
-  scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/tasks.readonly',
+  scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/tasks',
   redirectUri: `https://${chrome.runtime.id}.chromiumapp.org`
 };
 
@@ -234,7 +234,7 @@ async function fetchTasks(callback) {
       throw new Error('Not authenticated');
     }
 
-    const response = await fetch('https://tasks.googleapis.com/tasks/v1/lists/@default/tasks', {
+    const response = await fetch('https://tasks.googleapis.com/tasks/v1/lists/@default/tasks?showCompleted=true', {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -245,9 +245,51 @@ async function fetchTasks(callback) {
       throw new Error(data.error.message);
     }
     
-    callback({ success: true, tasks: data.items || [] });
+    // Map the tasks to include the id and status
+    const tasks = (data.items || []).map(task => ({
+      id: task.id,
+      title: task.title,
+      notes: task.notes,
+      category: task.category || 'other',
+      status: task.status,
+      completed: task.completed
+    }));
+    
+    callback({ success: true, tasks: tasks });
   } catch (error) {
     logger.error('Error fetching tasks:', error);
+    callback({ success: false, error: error.message });
+  }
+}
+
+async function createTask(task, callback) {
+  try {
+    const token = await tokenManager.getValidToken();
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    const response = await fetch('https://tasks.googleapis.com/tasks/v1/lists/@default/tasks', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        title: task.title,
+        notes: task.notes
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error(data.error.message);
+    }
+
+    callback({ success: true, task: data });
+  } catch (error) {
+    logger.error('Error creating task:', error);
     callback({ success: false, error: error.message });
   }
 }
@@ -316,6 +358,43 @@ async function initializeScheduledEvents() {
   } catch (error) { }
 }
 
+async function completeTask(taskId, callback) {
+  try {
+    console.log('Completing task with ID:', taskId);
+    const token = await tokenManager.getValidToken();
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    const url = `https://tasks.googleapis.com/tasks/v1/lists/@default/tasks/${taskId}`;
+    console.log('Making PATCH request to:', url);
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        status: 'completed',
+        completed: new Date().toISOString()
+      })
+    });
+
+    console.log('Update response status:', response.status);
+
+    if (response.status === 200) {
+      callback({ success: true });
+    } else {
+      const data = await response.json();
+      throw new Error(data.error.message);
+    }
+  } catch (error) {
+    console.error('Error completing task:', error);
+    callback({ success: false, error: error.message });
+  }
+}
+
 // Message handler
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'login') {
@@ -334,6 +413,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   } else if (request.action === 'addToCalendar') {
     addTaskToCalendar(request.task, request.duration, sendResponse);
+    return true;
+  } else if (request.action === 'addTask') {
+    createTask(request.task, sendResponse);
+    return true;
+  } else if (request.action === 'completeTask') {
+    completeTask(request.taskId, sendResponse);
     return true;
   }
 });
