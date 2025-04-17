@@ -247,12 +247,7 @@ async function fetchTasks(callback) {
       notes: task.notes,
       category: task.category || 'other',
       status: task.status,
-      completed: task.completed
-    }));
-    
-    callback({ success: true, tasks: tasks });
-  } catch (error) {
-    logger.error('Error fetching tasks:', error);
+tokenManager.getValidToken().then(token => {\n  initializeScheduledEvents();\n  sendResponse(token);\n}).catch(error => {\n  logger.error('Re-authentication required:', error);\n  chrome.runtime.openOptionsPage(); // Direct the user to the login/options page\n});
     callback({ success: false, error: error.message });
   }
 }
@@ -362,12 +357,7 @@ async function completeTask(taskId, callback) {
     }
 
     const url = `https://tasks.googleapis.com/tasks/v1/lists/@default/tasks/${taskId}`;
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
+logger.error('Error initializing scheduled events:', error);\nchrome.notifications.create({\n  type: 'basic',\n  iconUrl: 'icons/icon48.png',\n  title: 'Error',\n  message: 'Failed to initialize events. Authentication may be required.'\n});
       body: JSON.stringify({
         status: 'completed',
         completed: new Date().toISOString()
