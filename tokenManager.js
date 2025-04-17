@@ -27,12 +27,7 @@ export class TokenManager {
     async login() {
       try {
         const auth = await chrome.identity.getAuthToken({ 
-          interactive: true 
-        });
-        if (auth && auth.token) {
-          this.token = auth.token;
-          this.tokenExpiry = new Date(auth.expiresAt);
-          return this.token;
+if (!auth || !auth.token) {\n  throw new Error('Authentication failed. Please log in again.');\n}\nthis.token = auth.token;\nthis.tokenExpiry = new Date(auth.expiresAt);
         }
         throw new Error('Failed to get auth token');
       } catch (error) {
@@ -57,4 +52,4 @@ export class TokenManager {
         throw error;
       }
     }
-  }
+if (!this.token || this.tokenExpiry <= new Date()) {\n  console.error('Token is invalid or expired. Re-authenticating...');\n  await this.login();\n}\nreturn this.token;
