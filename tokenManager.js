@@ -14,25 +14,34 @@ export class TokenManager {
           timeoutMsForNonInteractive: 1000
         });
         if (auth && auth.token) {
-          this.token = auth.token;
-          this.tokenExpiry = new Date(auth.expiresAt);
-          return true;
-        }
-      } catch (error) {
-        this.logger.debug('Non-interactive auth failed:', error);
-        return false;
-      }
-    }
-  
-    async login() {
-      try {
-        const auth = await chrome.identity.getAuthToken({ 
-          interactive: true 
-        });
-        if (auth && auth.token) {
-          this.token = auth.token;
-          this.tokenExpiry = new Date(auth.expiresAt);
-          return this.token;
+try {
+  const auth = await chrome.identity.getAuthToken({ 
+    interactive: false,
+    abortOnLoadForNonInteractive: true,
+    timeoutMsForNonInteractive: 1000
+  });
+  if (auth) {
+    this.token = auth;
+    this.tokenExpiry = new Date((await chrome.identity.getProfileUserInfo()).expiresIn);
+    return true;
+  }
+} catch (error) {
+  this.logger.debug('Non-interactive auth failed:', error);
+  return false;
+try {
+  const auth = await chrome.identity.getAuthToken({ 
+    interactive: true 
+  });
+  if (auth) {
+    this.token = auth;
+    this.tokenExpiry = new Date((await chrome.identity.getProfileUserInfo()).expiresIn);
+    return this.token;
+  }
+  throw new Error('Failed to get auth token');
+} catch (error) {
+  this.logger.error('Login failed:', error);
+  throw error;
+}
         }
         throw new Error('Failed to get auth token');
       } catch (error) {

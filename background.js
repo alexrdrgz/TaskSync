@@ -252,9 +252,10 @@ async function fetchTasks(callback) {
     
     callback({ success: true, tasks: tasks });
   } catch (error) {
-    logger.error('Error fetching tasks:', error);
-    callback({ success: false, error: error.message });
-  }
+if (!token) {
+  logger.error('Not authenticated. Please log in again.');
+  sendResponse({ success: false, error: 'Not authenticated. Please log in again.' });
+  return true;
 }
 
 async function createTask(task, callback) {
